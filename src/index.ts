@@ -72,9 +72,9 @@ passport.deserializeUser((id: string, cb) => {
 });
 
 app.post('/register', async (req, res) => {
-  const { email, password } = req?.body;
+  const { name, email, password, repeated_password} = req?.body;
   console.log(req.body)
-  if (!email || !password || typeof email !== "string" || typeof password !== "string") {
+  if (!name || !email || !password || typeof email !== "string" || typeof password !== "string" || password !== repeated_password) {
 
     res.status(400).json({Message:"Invalid params"});
 
@@ -85,6 +85,7 @@ app.post('/register', async (req, res) => {
     if (!doc) {
       const hashedPassword = await bcrypt.hash(password, 10);
       const newUser = new User({
+        name,
         email,
         password: hashedPassword,
       });
@@ -95,11 +96,14 @@ app.post('/register', async (req, res) => {
 });
 
 app.post("/login", passport.authenticate("local"), (req, res) => {
+
    res.send("success")
 });
 
 app.get("/user", (req, res) => {
+  
   res.send(req.user);
+  
 });
 
 app.get("/logout", (req, res) => {
