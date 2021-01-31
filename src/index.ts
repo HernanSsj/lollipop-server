@@ -4,6 +4,7 @@ import cors from 'cors';
 import passport from 'passport';
 import passportLocal from 'passport-local';
 import passportGoogle from 'passport-google-oauth'
+import passportFacebook from 'passport-facebook'
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import bcrypt from 'bcryptjs';
@@ -13,6 +14,8 @@ import {UserInterface, DatabaseUserInterface} from './interfaces/user'
 
 const LocalStrategy = passportLocal.Strategy
 const GoogleStrategy = passportGoogle.OAuth2Strategy;
+const FacebookStrategy = passportFacebook.Strategy;
+
 dotenv.config();
 
 const CONECCTION_URL:string = process.env.CONECCTION_URL!
@@ -20,6 +23,9 @@ const PORT = process.env.port || 5000
 const clientID:string = process.env.clientId!
 const clientSecret:string = process.env.clientSecret!
 const callbackURL:string = process.env.callbackURL!
+const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID!
+const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET!
+const FacebookCallbackURL = process.env.FacebookCallbackURL!
 
 mongoose.connect(CONECCTION_URL, {
     useCreateIndex: true,
@@ -48,7 +54,7 @@ app.use(passport.session());
 passport.use(new LocalStrategy({ usernameField: 'email',} ,(email: string, password: string, done) => {
   User.findOne({ email: email }, (err: any, user: DatabaseUserInterface) => {
     if (err) throw err;
-    if (!user) return done(null, false);
+    if (!user?.password) return done(null, false);
     bcrypt.compare(password, user.password, (err, result: boolean) => {
       if (err) throw err;
       if (result === true) {
@@ -72,17 +78,15 @@ passport.use(
     },
     (accessToken, refreshToken, profile, done) => {
       
-      User.findOne({googleId: profile.id}).then( async (currentUser: any)=>{
-        console.log("the profile",profile)
+      User.findOne({email: profile._json?.email}).then( async (currentUser: any)=>{
+     
         if(currentUser){
-          
           done(null, currentUser);
         } else{
              
             const newUser = new User({
               name: profile.name?.givenName,
               email: profile._json?.email,
-              googleId: profile.id,
             })
             await newUser.save()
             done(null, newUser);
@@ -91,7 +95,40 @@ passport.use(
       })
     })
   );
+passport.use(new FacebookStrategy({
+    clientID: FACEBOOK_APP_ID,
+    clientSecret: FACEBOOK_APP_SECRET ,
+    callbackURL: FacebookCallbackURL,
+    profileFields: ['email']
+  },
+  function(accessToken, refreshToken, profile, done) {
+    User.findOne({email: profile._json?.email}).then( async (currentUser: DatabaseUserInterface)=>{
+      if(currentUser){
+        
+        done(null, currentUser);
+      } else{
+           
+          const newUser = new User({
+            name: profile.name?.givenName,
+            email: profile._json?.email,
+          })
+          await newUser.save()
+          done(null, newUser);
+       } 
+       
+    })
+  
+  }
+));
 
+app.get('/auth/facebook',passport.authenticate("facebook",{scope: ["public_profile", "email"]}));
+
+app.get('/auth/facebook/callback',
+  passport.authenticate('facebook', { failureRedirect: 'http://localhost:3000/login' }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect('http://localhost:3000/app');
+  });
 passport.serializeUser((user: any, cb) => {
   cb(null, user._id);
 });
@@ -109,7 +146,7 @@ passport.deserializeUser((id: string, cb) => {
 
 app.post('/register', async (req, res) => {
   const { name, email, password, repeated_password} = req?.body;
-  console.log(req.body)
+
   if (!name || !email || !password || typeof email !== "string" || typeof password !== "string" || password !== repeated_password) {
 
     res.status(400).json({Message:"Invalid params"});
@@ -141,7 +178,7 @@ app.get("/auth/google", passport.authenticate("google", {
 }));
 
 app.get("/auth/google/redirect",
-  passport.authenticate("google"),
+  passport.authenticate("google" ,{ failureRedirect: 'http://localhost:3000/login'}),
       (req, res) => {
       
           res.redirect("http://localhost:3000/");
