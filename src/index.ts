@@ -135,18 +135,27 @@ app.post("/login", passport.authenticate("local"), (req, res) => {
 
    res.send("success")
 });
+
 app.get("/auth/google", passport.authenticate("google", {
   scope: ["profile", "email"]
-}), (req, res)=>{
-   console.log("Entering auths")
-});
-app.get("/auth/google/redirect",passport.authenticate("google"),(req,res)=>{
-  res.json({"you reached the redirect URI":req.user});
-  
-});
+}));
+
+app.get("/auth/google/redirect",
+  passport.authenticate("google"),
+      (req, res) => {
+      
+          res.redirect("http://localhost:3000/");
+      });
+
 app.get("/user", (req, res) => {
   
-  res.send(req.user);
+  if(req.user){
+    console.log(req.user)
+    res.json(req.user);
+  }else{
+    res.json(null)
+  }
+  
   
 });
 
