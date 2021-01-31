@@ -6,7 +6,13 @@ const userSchema = new mongoose.Schema({
         type: String,
         unique: true
     },
-   password: String
+   password: String,
+   googleId: {
+    type: String,  index: {
+      unique: true,
+      partialFilterExpression: {googleId: {$type: "string"}}
+    }
+   }
 });
 
 const User = mongoose.model("User", userSchema);

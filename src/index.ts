@@ -3,6 +3,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import passport from 'passport';
 import passportLocal from 'passport-local';
+import passportGoogle from 'passport-google-oauth'
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import bcrypt from 'bcryptjs';
@@ -11,11 +12,14 @@ import User from './models/user'
 import {UserInterface, DatabaseUserInterface} from './interfaces/user'
 
 const LocalStrategy = passportLocal.Strategy
-
+const GoogleStrategy = passportGoogle.OAuth2Strategy;
 dotenv.config();
 
 const CONECCTION_URL:string = process.env.CONECCTION_URL!
 const PORT = process.env.port || 5000
+const clientID:string = process.env.clientId!
+const clientSecret:string = process.env.clientSecret!
+const callbackURL:string = process.env.callbackURL!
 
 mongoose.connect(CONECCTION_URL, {
     useCreateIndex: true,
@@ -40,6 +44,7 @@ app.use(cookieParser());
 app.use(passport.initialize());
 app.use(passport.session());
 
+//LOCAL STRATEGY
 passport.use(new LocalStrategy({ usernameField: 'email',} ,(email: string, password: string, done) => {
   User.findOne({ email: email }, (err: any, user: DatabaseUserInterface) => {
     if (err) throw err;
@@ -55,13 +60,44 @@ passport.use(new LocalStrategy({ usernameField: 'email',} ,(email: string, passw
   });
 })
 );
+/*/////////////////////////////////////////////////////////*/
 
-passport.serializeUser((user: DatabaseUserInterface, cb) => {
+//GOOGLE STRATEGY
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID,
+      clientSecret,
+      callbackURL
+    },
+    (accessToken, refreshToken, profile, done) => {
+      
+      User.findOne({googleId: profile.id}).then( async (currentUser: any)=>{
+        console.log("the profile",profile)
+        if(currentUser){
+          
+          done(null, currentUser);
+        } else{
+             
+            const newUser = new User({
+              name: profile.name?.givenName,
+              email: profile._json?.email,
+              googleId: profile.id,
+            })
+            await newUser.save()
+            done(null, newUser);
+         } 
+         
+      })
+    })
+  );
+
+passport.serializeUser((user: any, cb) => {
   cb(null, user._id);
 });
 
 passport.deserializeUser((id: string, cb) => {
-  User.findOne({ _id: id }, (err: any, user: DatabaseUserInterface) => {
+  User.findOne({ _id: id }, (err: any, user: any) => {
     const userInformation: UserInterface = {
       email: user.email,
       name: user.name,
@@ -100,9 +136,26 @@ app.post("/login", passport.authenticate("local"), (req, res) => {
    res.send("success")
 });
 
+app.get("/auth/google", passport.authenticate("google", {
+  scope: ["profile", "email"]
+}));
+
+app.get("/auth/google/redirect",
+  passport.authenticate("google"),
+      (req, res) => {
+      
+          res.redirect("http://localhost:3000/");
+      });
+
 app.get("/user", (req, res) => {
   
-  res.send(req.user);
+  if(req.user){
+    console.log(req.user)
+    res.json(req.user);
+  }else{
+    res.json(null)
+  }
+  
   
 });
 
