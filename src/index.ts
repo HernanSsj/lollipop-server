@@ -5,6 +5,7 @@ import passport from 'passport';
 import passportLocal from 'passport-local';
 import passportGoogle from 'passport-google-oauth'
 import passportFacebook from 'passport-facebook'
+import passportTwitter from 'passport-twitter'
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import bcrypt from 'bcryptjs';
@@ -15,6 +16,7 @@ import {UserInterface, DatabaseUserInterface} from './interfaces/user'
 const LocalStrategy = passportLocal.Strategy
 const GoogleStrategy = passportGoogle.OAuth2Strategy;
 const FacebookStrategy = passportFacebook.Strategy;
+const TwitterStrategy = passportTwitter.Strategy;
 
 dotenv.config();
 
@@ -26,7 +28,9 @@ const callbackURL:string = process.env.callbackURL!
 const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID!
 const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET!
 const FacebookCallbackURL = process.env.FacebookCallbackURL!
-
+const TWITTER_CONSUMER_KEY = process.env.TWITTER_CONSUMER_KEY!
+const TWITTER_CONSUMER_SECRET = process.env.TWITTER_CONSUMER_SECRET!
+const TwitterCallbackURL = process.env.TwitterCallbackURL!
 mongoose.connect(CONECCTION_URL, {
     useCreateIndex: true,
     useNewUrlParser: true,
@@ -95,6 +99,7 @@ passport.use(
       })
     })
   );
+/* FACEBOOK STRATEGY */
 passport.use(new FacebookStrategy({
     clientID: FACEBOOK_APP_ID,
     clientSecret: FACEBOOK_APP_SECRET ,
@@ -120,6 +125,41 @@ passport.use(new FacebookStrategy({
   
   }
 ));
+
+/* TWITTER STRATEGY */
+
+passport.use(new TwitterStrategy({
+  consumerKey: TWITTER_CONSUMER_KEY,
+  consumerSecret: TWITTER_CONSUMER_SECRET,
+  callbackURL: TwitterCallbackURL
+},
+function(token, tokenSecret, profile, done) {
+  console.log(profile)
+  User.findOne({email: profile._json?.email}).then( async (currentUser: DatabaseUserInterface)=>{
+    if(currentUser){
+      
+      done(null, currentUser);
+    } else{
+         
+        const newUser = new User({
+          name: profile.name?.givenName,
+          email: profile._json?.email,
+        })
+        await newUser.save()
+        done(null, newUser);
+     } 
+  })}
+));
+
+app.get('/auth/twitter',
+  passport.authenticate('twitter', {scope: ["public_profile", "email"]}));
+
+app.get('/auth/twitter/callback', 
+  passport.authenticate('twitter', { failureRedirect: 'http://localhost:3000/login' }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect('http://localhost:3000/app');
+  });
 
 app.get('/auth/facebook',passport.authenticate("facebook",{scope: ["public_profile", "email"]}));
 
