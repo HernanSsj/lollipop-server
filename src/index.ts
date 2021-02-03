@@ -37,7 +37,7 @@ mongoose.connect(CONECCTION_URL, {
     useUnifiedTopology: true
   }, (err) => {
     if (err) throw err;
-    console.log("Connected To Mongo")
+    console.log("Connected To Mongo Database")
   });
 
 const app = express();
@@ -134,7 +134,6 @@ passport.use(new TwitterStrategy({
   callbackURL: TwitterCallbackURL
 },
 function(token, tokenSecret, profile, done) {
-  console.log(profile)
   User.findOne({email: profile._json?.email}).then( async (currentUser: DatabaseUserInterface)=>{
     if(currentUser){
       
@@ -154,21 +153,48 @@ function(token, tokenSecret, profile, done) {
 app.get('/auth/twitter',
   passport.authenticate('twitter', {scope: ["public_profile", "email"]}));
 
-app.get('/auth/twitter/callback', 
-  passport.authenticate('twitter', { failureRedirect: 'http://localhost:3000/login' }),
-  function(req, res) {
-    // Successful authentication, redirect home.
-    res.redirect('http://localhost:3000/app');
+  app.get('/auth/twitter/callback', function(req, res, next) {
+    passport.authenticate('twitter', function(err, user, info) {
+      if (err) {return next(err);}
+      if (!user) { 
+        /* Envia el js para cerrar el pop up */
+        let responseHTML = '<script>res = null; window.opener.postMessage(res, "*");window.close();</script>'
+        return res.status(200).send(responseHTML); 
+      }else{
+         /* Envia el ok */
+        req.logIn(user, function(err) {
+          if (err) { return next(err); }
+          let responseHTML = '<script>res = %value%; window.opener.postMessage(res, "*");window.close();</script>'
+          responseHTML = responseHTML.replace('%value%', JSON.stringify({user: user._id}));
+          return res.status(200).send(responseHTML);
+        });
+      }
+    })(req, res, next);
   });
 
 app.get('/auth/facebook',passport.authenticate("facebook",{scope: ["public_profile", "email"]}));
 
-app.get('/auth/facebook/callback',
-  passport.authenticate('facebook', { failureRedirect: 'http://localhost:3000/login' }),
-  function(req, res) {
-    // Successful authentication, redirect home.
-    res.redirect('http://localhost:3000/app');
-  });
+app.get('/auth/facebook/callback', function(req, res, next) {
+  passport.authenticate('facebook', function(err, user, info) {
+    if (err) {return next(err);}
+    if (!user) { 
+      
+      /* Envia el js para cerrar el pop up */
+      let responseHTML = '<script>res = null; window.opener.postMessage(res, "*");window.close();</script>'
+      return res.status(200).send(responseHTML); 
+    }else{
+       /* Envia el ok */
+      req.logIn(user, function(err) {
+        if (err) { return next(err); }
+        let responseHTML = '<script>res = %value%; window.opener.postMessage(res, "*");window.close();</script>'
+        responseHTML = responseHTML.replace('%value%', JSON.stringify(user._id));
+       
+        return res.status(200).send(responseHTML);
+      });
+    }
+  })(req, res, next);
+});
+
 passport.serializeUser((user: any, cb) => {
   cb(null, user._id);
 });
@@ -208,26 +234,45 @@ app.post('/register', async (req, res) => {
   })
 });
 
-app.post("/login", passport.authenticate("local"), (req, res) => {
-
-   res.send("success")
+app.post('/login', function(req, res, next) {
+  passport.authenticate('local', function(err, user, info) {
+    if (err) { return next(err); }
+    if (!user) { return res.sendStatus(401); }
+    req.logIn(user, function(err) {
+      if (err) { return next(err); }
+      return res.status(200).json(user._id);
+    });
+  })(req, res, next);
 });
 
 app.get("/auth/google", passport.authenticate("google", {
   scope: ["profile", "email"]
 }));
 
-app.get("/auth/google/redirect",
-  passport.authenticate("google" ,{ failureRedirect: 'http://localhost:3000/login'}),
-      (req, res) => {
+app.get('/auth/google/redirect', function(req, res, next) {
+  passport.authenticate('google', function(err, user, info) {
+    if (err) {return next(err);}
+    if (!user) { 
       
-          res.redirect("http://localhost:3000/");
+      /* Envia el js para cerrar el pop up */
+      let responseHTML = '<script>res = null; window.opener.postMessage(res, "*");window.close();</script>'
+      return res.status(200).send(responseHTML); 
+    }else{
+       /* Envia el ok */
+      req.logIn(user, function(err) {
+        if (err) { return next(err); }
+        let responseHTML = '<script>res = %value%; window.opener.postMessage(res, "*");window.close();</script>'
+        responseHTML = responseHTML.replace('%value%', JSON.stringify(user._id));
+       
+        return res.status(200).send(responseHTML);
       });
+    }
+  })(req, res, next);
+});
 
 app.get("/user", (req, res) => {
   
   if(req.user){
-    console.log(req.user)
     res.json(req.user);
   }else{
     res.json(null)
