@@ -10,3 +10,14 @@ export interface UserInterface {
     password: string;
     _id: string;
   }
+
+  export interface DatabaseSocialUserInterface {
+    name: String;
+    socialId: String;
+    _id: string;
+  }
+  export interface SocialUserInterface {
+    name: String;
+    id: string;
+  }
+  
