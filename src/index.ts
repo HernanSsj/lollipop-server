@@ -32,7 +32,7 @@ app.use(passport.session());
 passportConfig(passport)
 
 app.use('/auth', authRoutes)
-app.use('user', userRoutes)
+app.use('/user', userRoutes)
 
 
 app.listen(config.app.PORT, () => {
