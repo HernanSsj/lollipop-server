@@ -31,6 +31,9 @@ app.use(passport.initialize());
 app.use(passport.session());
 passportConfig(passport)
 
+app.get('/', (req,res)=>{
+  res.send('Lollipop server')
+})
 app.use('/auth', authRoutes)
 app.use('/user', userRoutes)
 
