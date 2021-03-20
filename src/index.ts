@@ -2,8 +2,6 @@ import mongoose from 'mongoose';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import passport from 'passport';
-import cookieParser from 'cookie-parser';
-import session from 'express-session';
 import  passportConfig  from './passport/passport'
 import config from './config'
 import authRoutes from './routes/auth'
@@ -19,20 +17,12 @@ mongoose.connect(config.db.CONECCTION_URL, config.db.PARAMS, (err) => {
 const app = express();
 app.use(express.json());
 app.use(cors({ origin: "http://localhost:3000", credentials: true }))
-app.use(
-  session({
-    secret: "secretcode",
-    resave: true,
-    saveUninitialized: true,
-  })
-);
-app.use(cookieParser());
 app.use(passport.initialize());
-app.use(passport.session());
+
 passportConfig(passport)
 
 app.use('/auth', authRoutes)
-app.use('user', userRoutes)
+app.use('/user', userRoutes)
 
 
 app.listen(config.app.PORT, () => {

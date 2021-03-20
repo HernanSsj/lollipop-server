@@ -1,4 +1,4 @@
-export const getUser = ()=> (req: any, res: any) => {
+export const getUser = (req: any, res: any) => {
   
     if(req.user){
       res.json(req.user);
@@ -7,4 +7,4 @@ export const getUser = ()=> (req: any, res: any) => {
     }
     
     
-  }
+}

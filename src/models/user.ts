@@ -24,6 +24,7 @@ const socialUserSchema = new mongoose.Schema({
         unique: true,
     },
 });
+
 const User = mongoose.model("User", userSchema);
 export const SocialUser = mongoose.model("SocialUser", socialUserSchema);
 export default User;

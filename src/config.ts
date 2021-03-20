@@ -26,7 +26,12 @@ const config = {
     },
     app: {
         PORT: parseInt(process.env.PORT!) || 3000
-      }
+      },
+    jwt:{
+            secret: process.env.jwtSecret!,
+            permanent: process.env.jwtPermanent!,
+            temporal:process.env.jwtTemporal!
+    }
 }
 
 
